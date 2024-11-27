@@ -1,3 +1,5 @@
+syntax = "proto3";
+
 message State {
     int32 term = 1;
     bool isLeader = 2; 
