@@ -1,12 +1,11 @@
 import argparse
 import concurrent.futures
 import grpc
-import raft_pb2
-import raft_pb2_grpc as raft_pb2
+import raft_pb2_grpc
 import subprocess
 
 
-class KeyValueStore(raft_pb2.KeyValueStoreServicer):
+class KeyValueStore(raft_pb2_grpc.KeyValueStoreServicer):
     KVS_PORT_BASE = 9000
 
     def __init__(self, kvs_id: int, num_kvs_servers: int):
@@ -49,7 +48,7 @@ if __name__ == "__main__":
 
     kvs_servicer = KeyValueStore(kvs_id, num_kvs_servers)
     kvs_server = grpc.server(concurrent.futures.ThreadPoolExecutor(max_workers=5))
-    raft_pb2.add_KeyValueStoreServicer_to_server(kvs_servicer, kvs_server)
+    raft_pb2_grpc.add_KeyValueStoreServicer_to_server(kvs_servicer, kvs_server)
     kvs_server.add_insecure_port(f"[::]:{kvs_servicer.server_port}")
 
     kvs_server.start()
