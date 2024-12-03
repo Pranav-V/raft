@@ -36,6 +36,7 @@ class FrontEnd(raft_pb2_grpc.FrontEndServicer):
     def log_msg(self, msg: str):
         print(f"[FrontEnd]: {msg}")
 
+
 if __name__ == "__main__":
     frontend_server = grpc.server(concurrent.futures.ThreadPoolExecutor(max_workers=5))
     frontend_servicer = FrontEnd()
