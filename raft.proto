@@ -1,4 +1,5 @@
 syntax = "proto3";
+package raftkv;
 
 message State {
     int32 term = 1;

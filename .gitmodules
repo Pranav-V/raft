@@ -1,3 +1,3 @@
-[submodule "raft_tests/class_tests"]
-	path = raft_tests/class_tests
+[submodule "class_tests"]
+	path = class_tests
 	url = https://github.com/asmitalim/CS380D-RaftProject

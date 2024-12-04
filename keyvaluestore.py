@@ -1,8 +1,13 @@
 import argparse
 import concurrent.futures
 import grpc
+import os
 import raft_pb2_grpc
 import subprocess
+
+
+# Suppress logging warnings
+os.environ["GRPC_VERBOSITY"] = "ERROR"
 
 
 class KeyValueStore(raft_pb2_grpc.KeyValueStoreServicer):

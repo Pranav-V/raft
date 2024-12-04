@@ -1,8 +1,13 @@
 import concurrent.futures
 import grpc
+import os
 import raft_pb2
 import raft_pb2_grpc
 import subprocess
+
+
+# Suppress logging warnings
+os.environ["GRPC_VERBOSITY"] = "ERROR"
 
 
 class FrontEnd(raft_pb2_grpc.FrontEndServicer):
