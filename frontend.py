@@ -6,7 +6,7 @@ import raft_pb2_grpc
 import subprocess
 
 
-# Suppress logging warnings
+# suppress logging warnings
 os.environ["GRPC_VERBOSITY"] = "ERROR"
 
 
@@ -23,16 +23,16 @@ class FrontEnd(raft_pb2_grpc.FrontEndServicer):
         pass
 
     def StartRaft(self, request, context):
-        num_kvs_servers = request.arg
-        for kvs_id in range(num_kvs_servers + 1):
+        num_servers = request.arg
+        for server_id in range(1, num_servers + 1):
             # spins up each kvs server process
             subprocess.Popen(
                 [
                     "python3",
                     "keyvaluestore.py",
-                    f"{kvs_id}",
-                    f"raftserver{kvs_id}",
-                    f"{num_kvs_servers}",
+                    f"{server_id}",
+                    f"raftserver{server_id}",
+                    f"{num_servers}",
                 ]
             )
 
