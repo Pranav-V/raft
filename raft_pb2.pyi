@@ -2,7 +2,13 @@ from google.protobuf.internal import containers as _containers
 from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
-from typing import ClassVar as _ClassVar, Iterable as _Iterable, Mapping as _Mapping, Optional as _Optional, Union as _Union
+from typing import (
+    ClassVar as _ClassVar,
+    Iterable as _Iterable,
+    Mapping as _Mapping,
+    Optional as _Optional,
+    Union as _Union,
+)
 
 DESCRIPTOR: _descriptor.FileDescriptor
 
@@ -11,6 +17,7 @@ class RequestType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     get: _ClassVar[RequestType]
     put: _ClassVar[RequestType]
     replace: _ClassVar[RequestType]
+
 get: RequestType
 put: RequestType
 replace: RequestType
@@ -33,7 +40,13 @@ class KeyValue(_message.Message):
     value: str
     ClientId: int
     RequestId: int
-    def __init__(self, key: _Optional[str] = ..., value: _Optional[str] = ..., ClientId: _Optional[int] = ..., RequestId: _Optional[int] = ...) -> None: ...
+    def __init__(
+        self,
+        key: _Optional[str] = ...,
+        value: _Optional[str] = ...,
+        ClientId: _Optional[int] = ...,
+        RequestId: _Optional[int] = ...,
+    ) -> None: ...
 
 class GetKey(_message.Message):
     __slots__ = ("key", "ClientId", "RequestId")
@@ -43,7 +56,12 @@ class GetKey(_message.Message):
     key: str
     ClientId: int
     RequestId: int
-    def __init__(self, key: _Optional[str] = ..., ClientId: _Optional[int] = ..., RequestId: _Optional[int] = ...) -> None: ...
+    def __init__(
+        self,
+        key: _Optional[str] = ...,
+        ClientId: _Optional[int] = ...,
+        RequestId: _Optional[int] = ...,
+    ) -> None: ...
 
 class Reply(_message.Message):
     __slots__ = ("wrongLeader", "error", "value")
@@ -53,7 +71,12 @@ class Reply(_message.Message):
     wrongLeader: bool
     error: str
     value: str
-    def __init__(self, wrongLeader: bool = ..., error: _Optional[str] = ..., value: _Optional[str] = ...) -> None: ...
+    def __init__(
+        self,
+        wrongLeader: bool = ...,
+        error: _Optional[str] = ...,
+        value: _Optional[str] = ...,
+    ) -> None: ...
 
 class Empty(_message.Message):
     __slots__ = ()
@@ -81,7 +104,16 @@ class LogEntry(_message.Message):
     index: int
     term: int
     request: RequestType
-    def __init__(self, key: _Optional[str] = ..., value: _Optional[str] = ..., ClientId: _Optional[int] = ..., RequestId: _Optional[int] = ..., index: _Optional[int] = ..., term: _Optional[int] = ..., request: _Optional[_Union[RequestType, str]] = ...) -> None: ...
+    def __init__(
+        self,
+        key: _Optional[str] = ...,
+        value: _Optional[str] = ...,
+        ClientId: _Optional[int] = ...,
+        RequestId: _Optional[int] = ...,
+        index: _Optional[int] = ...,
+        term: _Optional[int] = ...,
+        request: _Optional[_Union[RequestType, str]] = ...,
+    ) -> None: ...
 
 class AppendEntriesArgs(_message.Message):
     __slots__ = ("term", "leaderId", "prevLogIndex", "entries", "leaderCommit")
@@ -95,7 +127,14 @@ class AppendEntriesArgs(_message.Message):
     prevLogIndex: int
     entries: _containers.RepeatedCompositeFieldContainer[LogEntry]
     leaderCommit: int
-    def __init__(self, term: _Optional[int] = ..., leaderId: _Optional[int] = ..., prevLogIndex: _Optional[int] = ..., entries: _Optional[_Iterable[_Union[LogEntry, _Mapping]]] = ..., leaderCommit: _Optional[int] = ...) -> None: ...
+    def __init__(
+        self,
+        term: _Optional[int] = ...,
+        leaderId: _Optional[int] = ...,
+        prevLogIndex: _Optional[int] = ...,
+        entries: _Optional[_Iterable[_Union[LogEntry, _Mapping]]] = ...,
+        leaderCommit: _Optional[int] = ...,
+    ) -> None: ...
 
 class AppendEntriesReply(_message.Message):
     __slots__ = ("term", "success", "nextTryIndex")
@@ -105,7 +144,12 @@ class AppendEntriesReply(_message.Message):
     term: int
     success: bool
     nextTryIndex: int
-    def __init__(self, term: _Optional[int] = ..., success: bool = ..., nextTryIndex: _Optional[int] = ...) -> None: ...
+    def __init__(
+        self,
+        term: _Optional[int] = ...,
+        success: bool = ...,
+        nextTryIndex: _Optional[int] = ...,
+    ) -> None: ...
 
 class RequestVoteArgs(_message.Message):
     __slots__ = ("term", "candidateId", "lastLogIndex", "lastLogTerm")
@@ -117,7 +161,13 @@ class RequestVoteArgs(_message.Message):
     candidateId: int
     lastLogIndex: int
     lastLogTerm: int
-    def __init__(self, term: _Optional[int] = ..., candidateId: _Optional[int] = ..., lastLogIndex: _Optional[int] = ..., lastLogTerm: _Optional[int] = ...) -> None: ...
+    def __init__(
+        self,
+        term: _Optional[int] = ...,
+        candidateId: _Optional[int] = ...,
+        lastLogIndex: _Optional[int] = ...,
+        lastLogTerm: _Optional[int] = ...,
+    ) -> None: ...
 
 class RequestVoteReply(_message.Message):
     __slots__ = ("term", "voteGranted")
