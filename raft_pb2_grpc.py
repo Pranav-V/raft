@@ -5,26 +5,23 @@ import warnings
 
 import raft_pb2 as raft__pb2
 
-GRPC_GENERATED_VERSION = "1.68.0"
+GRPC_GENERATED_VERSION = '1.68.0'
 GRPC_VERSION = grpc.__version__
 _version_not_supported = False
 
 try:
     from grpc._utilities import first_version_is_lower
-
-    _version_not_supported = first_version_is_lower(
-        GRPC_VERSION, GRPC_GENERATED_VERSION
-    )
+    _version_not_supported = first_version_is_lower(GRPC_VERSION, GRPC_GENERATED_VERSION)
 except ImportError:
     _version_not_supported = True
 
 if _version_not_supported:
     raise RuntimeError(
-        f"The grpc package installed is at version {GRPC_VERSION},"
-        + f" but the generated code in raft_pb2_grpc.py depends on"
-        + f" grpcio>={GRPC_GENERATED_VERSION}."
-        + f" Please upgrade your grpc module to grpcio>={GRPC_GENERATED_VERSION}"
-        + f" or downgrade your generated code using grpcio-tools<={GRPC_VERSION}."
+        f'The grpc package installed is at version {GRPC_VERSION},'
+        + f' but the generated code in raft_pb2_grpc.py depends on'
+        + f' grpcio>={GRPC_GENERATED_VERSION}.'
+        + f' Please upgrade your grpc module to grpcio>={GRPC_GENERATED_VERSION}'
+        + f' or downgrade your generated code using grpcio-tools<={GRPC_VERSION}.'
     )
 
 
@@ -37,111 +34,163 @@ class KeyValueStoreStub(object):
         Args:
             channel: A grpc.Channel.
         """
+        self.AppendEntries = channel.unary_unary(
+                '/raftkv.KeyValueStore/AppendEntries',
+                request_serializer=raft__pb2.AppendEntriesArgs.SerializeToString,
+                response_deserializer=raft__pb2.AppendEntriesReply.FromString,
+                _registered_method=True)
         self.GetState = channel.unary_unary(
-            "/raftkv.KeyValueStore/GetState",
-            request_serializer=raft__pb2.Empty.SerializeToString,
-            response_deserializer=raft__pb2.State.FromString,
-            _registered_method=True,
-        )
+                '/raftkv.KeyValueStore/GetState',
+                request_serializer=raft__pb2.Empty.SerializeToString,
+                response_deserializer=raft__pb2.State.FromString,
+                _registered_method=True)
         self.Get = channel.unary_unary(
-            "/raftkv.KeyValueStore/Get",
-            request_serializer=raft__pb2.GetKey.SerializeToString,
-            response_deserializer=raft__pb2.Reply.FromString,
-            _registered_method=True,
-        )
+                '/raftkv.KeyValueStore/Get',
+                request_serializer=raft__pb2.GetKey.SerializeToString,
+                response_deserializer=raft__pb2.Reply.FromString,
+                _registered_method=True)
         self.Put = channel.unary_unary(
-            "/raftkv.KeyValueStore/Put",
-            request_serializer=raft__pb2.KeyValue.SerializeToString,
-            response_deserializer=raft__pb2.Reply.FromString,
-            _registered_method=True,
-        )
+                '/raftkv.KeyValueStore/Put',
+                request_serializer=raft__pb2.KeyValue.SerializeToString,
+                response_deserializer=raft__pb2.Reply.FromString,
+                _registered_method=True)
         self.Replace = channel.unary_unary(
-            "/raftkv.KeyValueStore/Replace",
-            request_serializer=raft__pb2.KeyValue.SerializeToString,
-            response_deserializer=raft__pb2.Reply.FromString,
-            _registered_method=True,
-        )
+                '/raftkv.KeyValueStore/Replace',
+                request_serializer=raft__pb2.KeyValue.SerializeToString,
+                response_deserializer=raft__pb2.Reply.FromString,
+                _registered_method=True)
+        self.RequestVote = channel.unary_unary(
+                '/raftkv.KeyValueStore/RequestVote',
+                request_serializer=raft__pb2.RequestVoteArgs.SerializeToString,
+                response_deserializer=raft__pb2.RequestVoteReply.FromString,
+                _registered_method=True)
 
 
 class KeyValueStoreServicer(object):
     """Missing associated documentation comment in .proto file."""
 
+    def AppendEntries(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
     def GetState(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details("Method not implemented!")
-        raise NotImplementedError("Method not implemented!")
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
 
     def Get(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details("Method not implemented!")
-        raise NotImplementedError("Method not implemented!")
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
 
     def Put(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details("Method not implemented!")
-        raise NotImplementedError("Method not implemented!")
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
 
     def Replace(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details("Method not implemented!")
-        raise NotImplementedError("Method not implemented!")
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def RequestVote(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
 
 
 def add_KeyValueStoreServicer_to_server(servicer, server):
     rpc_method_handlers = {
-        "GetState": grpc.unary_unary_rpc_method_handler(
-            servicer.GetState,
-            request_deserializer=raft__pb2.Empty.FromString,
-            response_serializer=raft__pb2.State.SerializeToString,
-        ),
-        "Get": grpc.unary_unary_rpc_method_handler(
-            servicer.Get,
-            request_deserializer=raft__pb2.GetKey.FromString,
-            response_serializer=raft__pb2.Reply.SerializeToString,
-        ),
-        "Put": grpc.unary_unary_rpc_method_handler(
-            servicer.Put,
-            request_deserializer=raft__pb2.KeyValue.FromString,
-            response_serializer=raft__pb2.Reply.SerializeToString,
-        ),
-        "Replace": grpc.unary_unary_rpc_method_handler(
-            servicer.Replace,
-            request_deserializer=raft__pb2.KeyValue.FromString,
-            response_serializer=raft__pb2.Reply.SerializeToString,
-        ),
+            'AppendEntries': grpc.unary_unary_rpc_method_handler(
+                    servicer.AppendEntries,
+                    request_deserializer=raft__pb2.AppendEntriesArgs.FromString,
+                    response_serializer=raft__pb2.AppendEntriesReply.SerializeToString,
+            ),
+            'GetState': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetState,
+                    request_deserializer=raft__pb2.Empty.FromString,
+                    response_serializer=raft__pb2.State.SerializeToString,
+            ),
+            'Get': grpc.unary_unary_rpc_method_handler(
+                    servicer.Get,
+                    request_deserializer=raft__pb2.GetKey.FromString,
+                    response_serializer=raft__pb2.Reply.SerializeToString,
+            ),
+            'Put': grpc.unary_unary_rpc_method_handler(
+                    servicer.Put,
+                    request_deserializer=raft__pb2.KeyValue.FromString,
+                    response_serializer=raft__pb2.Reply.SerializeToString,
+            ),
+            'Replace': grpc.unary_unary_rpc_method_handler(
+                    servicer.Replace,
+                    request_deserializer=raft__pb2.KeyValue.FromString,
+                    response_serializer=raft__pb2.Reply.SerializeToString,
+            ),
+            'RequestVote': grpc.unary_unary_rpc_method_handler(
+                    servicer.RequestVote,
+                    request_deserializer=raft__pb2.RequestVoteArgs.FromString,
+                    response_serializer=raft__pb2.RequestVoteReply.SerializeToString,
+            ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
-        "raftkv.KeyValueStore", rpc_method_handlers
-    )
+            'raftkv.KeyValueStore', rpc_method_handlers)
     server.add_generic_rpc_handlers((generic_handler,))
-    server.add_registered_method_handlers("raftkv.KeyValueStore", rpc_method_handlers)
+    server.add_registered_method_handlers('raftkv.KeyValueStore', rpc_method_handlers)
 
 
-# This class is part of an EXPERIMENTAL API.
+ # This class is part of an EXPERIMENTAL API.
 class KeyValueStore(object):
     """Missing associated documentation comment in .proto file."""
 
     @staticmethod
-    def GetState(
-        request,
-        target,
-        options=(),
-        channel_credentials=None,
-        call_credentials=None,
-        insecure=False,
-        compression=None,
-        wait_for_ready=None,
-        timeout=None,
-        metadata=None,
-    ):
+    def AppendEntries(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
         return grpc.experimental.unary_unary(
             request,
             target,
-            "/raftkv.KeyValueStore/GetState",
+            '/raftkv.KeyValueStore/AppendEntries',
+            raft__pb2.AppendEntriesArgs.SerializeToString,
+            raft__pb2.AppendEntriesReply.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def GetState(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/raftkv.KeyValueStore/GetState',
             raft__pb2.Empty.SerializeToString,
             raft__pb2.State.FromString,
             options,
@@ -152,26 +201,23 @@ class KeyValueStore(object):
             wait_for_ready,
             timeout,
             metadata,
-            _registered_method=True,
-        )
+            _registered_method=True)
 
     @staticmethod
-    def Get(
-        request,
-        target,
-        options=(),
-        channel_credentials=None,
-        call_credentials=None,
-        insecure=False,
-        compression=None,
-        wait_for_ready=None,
-        timeout=None,
-        metadata=None,
-    ):
+    def Get(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
         return grpc.experimental.unary_unary(
             request,
             target,
-            "/raftkv.KeyValueStore/Get",
+            '/raftkv.KeyValueStore/Get',
             raft__pb2.GetKey.SerializeToString,
             raft__pb2.Reply.FromString,
             options,
@@ -182,26 +228,23 @@ class KeyValueStore(object):
             wait_for_ready,
             timeout,
             metadata,
-            _registered_method=True,
-        )
+            _registered_method=True)
 
     @staticmethod
-    def Put(
-        request,
-        target,
-        options=(),
-        channel_credentials=None,
-        call_credentials=None,
-        insecure=False,
-        compression=None,
-        wait_for_ready=None,
-        timeout=None,
-        metadata=None,
-    ):
+    def Put(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
         return grpc.experimental.unary_unary(
             request,
             target,
-            "/raftkv.KeyValueStore/Put",
+            '/raftkv.KeyValueStore/Put',
             raft__pb2.KeyValue.SerializeToString,
             raft__pb2.Reply.FromString,
             options,
@@ -212,26 +255,23 @@ class KeyValueStore(object):
             wait_for_ready,
             timeout,
             metadata,
-            _registered_method=True,
-        )
+            _registered_method=True)
 
     @staticmethod
-    def Replace(
-        request,
-        target,
-        options=(),
-        channel_credentials=None,
-        call_credentials=None,
-        insecure=False,
-        compression=None,
-        wait_for_ready=None,
-        timeout=None,
-        metadata=None,
-    ):
+    def Replace(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
         return grpc.experimental.unary_unary(
             request,
             target,
-            "/raftkv.KeyValueStore/Replace",
+            '/raftkv.KeyValueStore/Replace',
             raft__pb2.KeyValue.SerializeToString,
             raft__pb2.Reply.FromString,
             options,
@@ -242,8 +282,34 @@ class KeyValueStore(object):
             wait_for_ready,
             timeout,
             metadata,
-            _registered_method=True,
-        )
+            _registered_method=True)
+
+    @staticmethod
+    def RequestVote(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/raftkv.KeyValueStore/RequestVote',
+            raft__pb2.RequestVoteArgs.SerializeToString,
+            raft__pb2.RequestVoteReply.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
 
 
 class FrontEndStub(object):
@@ -256,29 +322,25 @@ class FrontEndStub(object):
             channel: A grpc.Channel.
         """
         self.Get = channel.unary_unary(
-            "/raftkv.FrontEnd/Get",
-            request_serializer=raft__pb2.GetKey.SerializeToString,
-            response_deserializer=raft__pb2.Reply.FromString,
-            _registered_method=True,
-        )
+                '/raftkv.FrontEnd/Get',
+                request_serializer=raft__pb2.GetKey.SerializeToString,
+                response_deserializer=raft__pb2.Reply.FromString,
+                _registered_method=True)
         self.Put = channel.unary_unary(
-            "/raftkv.FrontEnd/Put",
-            request_serializer=raft__pb2.KeyValue.SerializeToString,
-            response_deserializer=raft__pb2.Reply.FromString,
-            _registered_method=True,
-        )
+                '/raftkv.FrontEnd/Put',
+                request_serializer=raft__pb2.KeyValue.SerializeToString,
+                response_deserializer=raft__pb2.Reply.FromString,
+                _registered_method=True)
         self.Replace = channel.unary_unary(
-            "/raftkv.FrontEnd/Replace",
-            request_serializer=raft__pb2.KeyValue.SerializeToString,
-            response_deserializer=raft__pb2.Reply.FromString,
-            _registered_method=True,
-        )
+                '/raftkv.FrontEnd/Replace',
+                request_serializer=raft__pb2.KeyValue.SerializeToString,
+                response_deserializer=raft__pb2.Reply.FromString,
+                _registered_method=True)
         self.StartRaft = channel.unary_unary(
-            "/raftkv.FrontEnd/StartRaft",
-            request_serializer=raft__pb2.IntegerArg.SerializeToString,
-            response_deserializer=raft__pb2.Reply.FromString,
-            _registered_method=True,
-        )
+                '/raftkv.FrontEnd/StartRaft',
+                request_serializer=raft__pb2.IntegerArg.SerializeToString,
+                response_deserializer=raft__pb2.Reply.FromString,
+                _registered_method=True)
 
 
 class FrontEndServicer(object):
@@ -287,79 +349,76 @@ class FrontEndServicer(object):
     def Get(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details("Method not implemented!")
-        raise NotImplementedError("Method not implemented!")
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
 
     def Put(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details("Method not implemented!")
-        raise NotImplementedError("Method not implemented!")
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
 
     def Replace(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details("Method not implemented!")
-        raise NotImplementedError("Method not implemented!")
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
 
     def StartRaft(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details("Method not implemented!")
-        raise NotImplementedError("Method not implemented!")
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
 
 
 def add_FrontEndServicer_to_server(servicer, server):
     rpc_method_handlers = {
-        "Get": grpc.unary_unary_rpc_method_handler(
-            servicer.Get,
-            request_deserializer=raft__pb2.GetKey.FromString,
-            response_serializer=raft__pb2.Reply.SerializeToString,
-        ),
-        "Put": grpc.unary_unary_rpc_method_handler(
-            servicer.Put,
-            request_deserializer=raft__pb2.KeyValue.FromString,
-            response_serializer=raft__pb2.Reply.SerializeToString,
-        ),
-        "Replace": grpc.unary_unary_rpc_method_handler(
-            servicer.Replace,
-            request_deserializer=raft__pb2.KeyValue.FromString,
-            response_serializer=raft__pb2.Reply.SerializeToString,
-        ),
-        "StartRaft": grpc.unary_unary_rpc_method_handler(
-            servicer.StartRaft,
-            request_deserializer=raft__pb2.IntegerArg.FromString,
-            response_serializer=raft__pb2.Reply.SerializeToString,
-        ),
+            'Get': grpc.unary_unary_rpc_method_handler(
+                    servicer.Get,
+                    request_deserializer=raft__pb2.GetKey.FromString,
+                    response_serializer=raft__pb2.Reply.SerializeToString,
+            ),
+            'Put': grpc.unary_unary_rpc_method_handler(
+                    servicer.Put,
+                    request_deserializer=raft__pb2.KeyValue.FromString,
+                    response_serializer=raft__pb2.Reply.SerializeToString,
+            ),
+            'Replace': grpc.unary_unary_rpc_method_handler(
+                    servicer.Replace,
+                    request_deserializer=raft__pb2.KeyValue.FromString,
+                    response_serializer=raft__pb2.Reply.SerializeToString,
+            ),
+            'StartRaft': grpc.unary_unary_rpc_method_handler(
+                    servicer.StartRaft,
+                    request_deserializer=raft__pb2.IntegerArg.FromString,
+                    response_serializer=raft__pb2.Reply.SerializeToString,
+            ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
-        "raftkv.FrontEnd", rpc_method_handlers
-    )
+            'raftkv.FrontEnd', rpc_method_handlers)
     server.add_generic_rpc_handlers((generic_handler,))
-    server.add_registered_method_handlers("raftkv.FrontEnd", rpc_method_handlers)
+    server.add_registered_method_handlers('raftkv.FrontEnd', rpc_method_handlers)
 
 
-# This class is part of an EXPERIMENTAL API.
+ # This class is part of an EXPERIMENTAL API.
 class FrontEnd(object):
     """Missing associated documentation comment in .proto file."""
 
     @staticmethod
-    def Get(
-        request,
-        target,
-        options=(),
-        channel_credentials=None,
-        call_credentials=None,
-        insecure=False,
-        compression=None,
-        wait_for_ready=None,
-        timeout=None,
-        metadata=None,
-    ):
+    def Get(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
         return grpc.experimental.unary_unary(
             request,
             target,
-            "/raftkv.FrontEnd/Get",
+            '/raftkv.FrontEnd/Get',
             raft__pb2.GetKey.SerializeToString,
             raft__pb2.Reply.FromString,
             options,
@@ -370,26 +429,23 @@ class FrontEnd(object):
             wait_for_ready,
             timeout,
             metadata,
-            _registered_method=True,
-        )
+            _registered_method=True)
 
     @staticmethod
-    def Put(
-        request,
-        target,
-        options=(),
-        channel_credentials=None,
-        call_credentials=None,
-        insecure=False,
-        compression=None,
-        wait_for_ready=None,
-        timeout=None,
-        metadata=None,
-    ):
+    def Put(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
         return grpc.experimental.unary_unary(
             request,
             target,
-            "/raftkv.FrontEnd/Put",
+            '/raftkv.FrontEnd/Put',
             raft__pb2.KeyValue.SerializeToString,
             raft__pb2.Reply.FromString,
             options,
@@ -400,26 +456,23 @@ class FrontEnd(object):
             wait_for_ready,
             timeout,
             metadata,
-            _registered_method=True,
-        )
+            _registered_method=True)
 
     @staticmethod
-    def Replace(
-        request,
-        target,
-        options=(),
-        channel_credentials=None,
-        call_credentials=None,
-        insecure=False,
-        compression=None,
-        wait_for_ready=None,
-        timeout=None,
-        metadata=None,
-    ):
+    def Replace(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
         return grpc.experimental.unary_unary(
             request,
             target,
-            "/raftkv.FrontEnd/Replace",
+            '/raftkv.FrontEnd/Replace',
             raft__pb2.KeyValue.SerializeToString,
             raft__pb2.Reply.FromString,
             options,
@@ -430,26 +483,23 @@ class FrontEnd(object):
             wait_for_ready,
             timeout,
             metadata,
-            _registered_method=True,
-        )
+            _registered_method=True)
 
     @staticmethod
-    def StartRaft(
-        request,
-        target,
-        options=(),
-        channel_credentials=None,
-        call_credentials=None,
-        insecure=False,
-        compression=None,
-        wait_for_ready=None,
-        timeout=None,
-        metadata=None,
-    ):
+    def StartRaft(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
         return grpc.experimental.unary_unary(
             request,
             target,
-            "/raftkv.FrontEnd/StartRaft",
+            '/raftkv.FrontEnd/StartRaft',
             raft__pb2.IntegerArg.SerializeToString,
             raft__pb2.Reply.FromString,
             options,
@@ -460,5 +510,4 @@ class FrontEnd(object):
             wait_for_ready,
             timeout,
             metadata,
-            _registered_method=True,
-        )
+            _registered_method=True)

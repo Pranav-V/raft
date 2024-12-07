@@ -51,7 +51,7 @@ class RaftServer:
         self.remaining_time = self.election_timeout
 
         # check for timeouts every CHECK_TIME s
-        threading.Timer(RaftServer.CHECK_TIME, self.__check_timeout, args=(False,)).start()
+        threading.Timer(RaftServer.CHECK_TIME, self.__check_timeout).start()
         self.stop_check = False
 
         self.__log_msg("started")
@@ -60,17 +60,16 @@ class RaftServer:
         # prevent further timeout checks
         self.stop_check = True
 
-    def __check_timeout(self, decrement: bool):
-        if decrement:
-            self.remaining_time -= (CHECK_TIME * 1000)
+    def __check_timeout(self):
+        self.remaining_time -= CHECK_TIME * 1000
 
-            # transition to candidate
-            if self.remaining_time <= 0:
-                pass
+        # transition to candidate
+        if self.remaining_time <= 0:
+            pass
 
         # check for cleanup
         if not self.stop_check:
-            threading.Timer(RaftServer.CHECK_TIME, self.__check_timeout, args=(True,)).start()
+            threading.Timer(RaftServer.CHECK_TIME, self.__check_timeout).start()
 
     def __log_msg(self, msg: str):
         print(f"[KVS {self.server_id}]: {msg}")
