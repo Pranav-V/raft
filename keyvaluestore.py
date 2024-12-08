@@ -7,6 +7,7 @@ import raft_pb2_grpc
 import random
 import subprocess
 import threading
+import time
 from enum import Enum
 
 
@@ -26,24 +27,24 @@ class KeyValueStore(raft_pb2_grpc.KeyValueStoreServicer):
         REPLACE = 5
         REQUEST_VOTE = 6
 
-        @static
-        def rpc_to_call(stub, request_type):
-            if request_type is APPEND_ENTRIES:
+        @classmethod
+        def rpc_to_call(cls, stub, request_type):
+            if request_type is cls.APPEND_ENTRIES:
                 return stub.AppendEntries
-            elif request_type is GET:
+            elif request_type is cls.GET:
                 return stub.Get
-            elif request_type is GET_STATE:
+            elif request_type is cls.GET_STATE:
                 return stub.GetState
-            elif request_type is PUT:
+            elif request_type is cls.PUT:
                 return stub.Put
-            elif request_type is REPLACE:
+            elif request_type is cls.REPLACE:
                 return stub.Replace
-            elif request_type is REQUEST_VOTE:
+            elif request_type is cls.REQUEST_VOTE:
                 return stub.RequestVote
 
     def __init__(self, server_id: int, num_servers: int):
         self.raft_server = RaftServer(self, server_id, num_servers)
-        self.server_port = self.__get_kvs_port(server_id)
+        self.server_port = self.__get_server_port(server_id)
 
     def AppendEntries(self, request, context):
         return self.raft_server.recieve_message(
@@ -67,10 +68,10 @@ class KeyValueStore(raft_pb2_grpc.KeyValueStoreServicer):
             KeyValueStore.KVSRPC.REQUEST_VOTE, request
         )
 
-    def broadcast_rpc(self, request_type: KeyValueStore.KVSRPC, request_data):
+    def broadcast_rpc(self, request_type: KVSRPC, request_data):
         # TODO setup up source port for network tests
 
-        for server_id in range(1, self.num_servers + 1):
+        for server_id in range(1, self.raft_server.num_servers + 1):
             # don't send rpc to self
             if server_id != self.raft_server.server_id:
                 self.send_rpc(server_id, request_type, request_data)
@@ -79,7 +80,7 @@ class KeyValueStore(raft_pb2_grpc.KeyValueStoreServicer):
         self.raft_server.cleanup()
 
     def send_rpc(
-        self, server_id: int, request_type: KeyValueStore.KVSRPC, request_data
+        self, server_id: int, request_type: KVSRPC, request_data
     ):
         # TODO setup up source port for network tests
 
@@ -103,13 +104,15 @@ class RaftServer:
         LEADER = 3
 
     def __init__(self, kvs_servicer: KeyValueStore, server_id: int, num_servers: int):
-        # TODO persist state on stable storage
+        # wait for other servers to start up
+        time.sleep(1)
 
         self.kvs_servicer = kvs_servicer
         self.server_id = server_id
         self.num_servers = num_servers
 
         # server state
+        # TODO persist state on stable storage
         self.current_term = 0
         self.election_timeout = random.randint(150, 300)
         self.election_votes = 0
@@ -129,17 +132,17 @@ class RaftServer:
         self.stop_check = True
 
     def recieve_message(self, request_type: KeyValueStore.KVSRPC, request_data):
-        if request_type is APPEND_ENTRIES:
+        if request_type is KeyValueStore.KVSRPC.APPEND_ENTRIES:
             pass
-        elif request_type is GET:
+        elif request_type is KeyValueStore.KVSRPC.GET:
             pass
-        elif request_type is GET_STATE:
+        elif request_type is KeyValueStore.KVSRPC.GET_STATE:
             pass
-        elif request_type is PUT:
+        elif request_type is KeyValueStore.KVSRPC.PUT:
             pass
-        elif request_type is REPLACE:
+        elif request_type is KeyValueStore.KVSRPC.REPLACE:
             pass
-        elif request_type is REQUEST_VOTE:
+        elif request_type is KeyValueStore.KVSRPC.REQUEST_VOTE:
             return self.__handle_request_vote(
                 request_data.term,
                 request_data.candidateId,
@@ -148,26 +151,26 @@ class RaftServer:
             )
 
     def __check_timeout(self):
-        self.remaining_time -= CHECK_TIME * 1000
+        self.remaining_time -= RaftServer.CHECK_TIME * 1000
 
         # transition to candidate
         if self.remaining_time <= 0:
             self.current_term += 1
             self.election_votes = 1
-            self.remaining_time = self.election_timeout
             self.server_state = RaftServer.ServerState.CANDIDATE
             self.voted_for = self.server_id
+            self.__refresh_time()
 
             # TODO update last two params with acutal log information
             request_vote_args = raft_pb2.RequestVoteArgs(
-                term=current_term,
+                term=self.current_term,
                 candidateId=self.server_id,
                 lastLogIndex=0,
                 lastLogTerm=0,
             )
 
             self.kvs_servicer.broadcast_rpc(
-                self.kvs_servicer.KVSRPC.REQUEST_VOTE, request_data
+                self.kvs_servicer.KVSRPC.REQUEST_VOTE, request_vote_args
             )
 
         # check for cleanup
@@ -177,7 +180,12 @@ class RaftServer:
     def __handle_request_vote(
         self, term: int, candidate_id: int, last_log_index: int, last_log_term: int
     ):
-        pass
+        self.__refresh_time()
+        self.__log_msg("recieved request")
+        return raft_pb2.RequestVoteReply()
+
+    def __refresh_time(self):
+        self.remaining_time = self.election_timeout
 
     def __log_msg(self, msg: str):
         print(f"[KVS {self.server_id}]: {msg}")
