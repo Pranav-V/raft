@@ -8,8 +8,9 @@ import random
 import subprocess
 import threading
 import time
+from dataclasses import dataclass
 from enum import Enum
-
+from typing import Optional
 
 # suppress logging warnings
 os.environ["GRPC_VERBOSITY"] = "ERROR"
@@ -26,6 +27,8 @@ class KeyValueStore(raft_pb2_grpc.KeyValueStoreServicer):
         PUT = 4
         REPLACE = 5
         REQUEST_VOTE = 6
+        APPEND_ENTRIES_REPLY = 7
+        REQUEST_VOTE_REPLY = 8
 
         @classmethod
         def rpc_to_call(cls, stub, request_type):
@@ -45,6 +48,7 @@ class KeyValueStore(raft_pb2_grpc.KeyValueStoreServicer):
     def __init__(self, server_id: int, num_servers: int):
         self.raft_server = RaftServer(self, server_id, num_servers)
         self.server_port = self.__get_server_port(server_id)
+        self.stop_check = False
 
     def AppendEntries(self, request, context):
         return self.raft_server.recieve_message(
@@ -77,18 +81,23 @@ class KeyValueStore(raft_pb2_grpc.KeyValueStoreServicer):
                 self.send_rpc(server_id, request_type, request_data)
 
     def cleanup(self):
+        # prevent further rpc calls
+        self.stop_check = True
         self.raft_server.cleanup()
 
-    def send_rpc(
-        self, server_id: int, request_type: KVSRPC, request_data
-    ):
+    def send_rpc(self, server_id: int, request_type: KVSRPC, request_data):
         # TODO setup up source port for network tests
 
-        channel = grpc.insecure_channel(
-            f"localhost:{self.__get_server_port(server_id)}"
-        )
-        stub = raft_pb2_grpc.KeyValueStoreStub(channel)
-        KeyValueStore.KVSRPC.rpc_to_call(stub, request_type)(request_data)
+        if not self.stop_check:
+            try:
+                channel = grpc.insecure_channel(
+                    f"localhost:{self.__get_server_port(server_id)}"
+                )
+                stub = raft_pb2_grpc.KeyValueStoreStub(channel)
+                reply = KeyValueStore.KVSRPC.rpc_to_call(stub, request_type)(request_data)
+            except:
+                # TODO check if this handles network errors
+                pass
 
     def __get_server_port(self, server_id: int) -> int:
         return KeyValueStore.KVS_PORT_BASE + server_id
@@ -97,6 +106,24 @@ class KeyValueStore(raft_pb2_grpc.KeyValueStoreServicer):
 class RaftServer:
 
     CHECK_TIME = 0.075
+
+    class RaftLog:
+
+        @dataclass
+        class LogEntry:
+            key: str
+            value: str
+            request: KeyValueStore.KVSRPC
+            index: int
+            term: int
+            client_id: int
+            request_id: int
+
+        def __init__(self):
+            self.log = []
+
+        def last_entry(self) -> Optional[LogEntry]:
+            return None if not self.log else self.log[-1]
 
     class ServerState(Enum):
         FOLLOWER = 1
@@ -112,11 +139,12 @@ class RaftServer:
         self.num_servers = num_servers
 
         # server state
-        # TODO persist state on stable storage
+        # TODO persist some state on stable storage
         self.current_term = 0
         self.election_timeout = random.randint(150, 300)
         self.election_votes = 0
         self.leader_id = None
+        self.log = RaftServer.RaftLog()
         self.remaining_time = self.election_timeout
         self.server_state = RaftServer.ServerState.FOLLOWER
         self.voted_for = None
@@ -161,34 +189,73 @@ class RaftServer:
             self.voted_for = self.server_id
             self.__refresh_time()
 
-            # TODO update last two params with acutal log information
+            last_entry = self.log.last_entry()
+            last_log_index = last_log_term = -1
+            if last_entry:
+                last_log_index = last_entry.index
+                last_log_term = last_entry.term
+
             request_vote_args = raft_pb2.RequestVoteArgs(
                 term=self.current_term,
                 candidateId=self.server_id,
-                lastLogIndex=0,
-                lastLogTerm=0,
+                lastLogIndex=last_log_index,
+                lastLogTerm=last_log_term,
             )
 
             self.kvs_servicer.broadcast_rpc(
                 self.kvs_servicer.KVSRPC.REQUEST_VOTE, request_vote_args
             )
 
+            self.__log_msg(f"transition to candidate; term {self.current_term}")
+
         # check for cleanup
         if not self.stop_check:
             threading.Timer(RaftServer.CHECK_TIME, self.__check_timeout).start()
 
     def __handle_request_vote(
-        self, term: int, candidate_id: int, last_log_index: int, last_log_term: int
+        self,
+        candidate_term: int,
+        candidate_id: int,
+        candidate_last_log_index: int,
+        candidate_last_log_term: int,
     ):
+        # reject candidate (based on term)
+        if candidate_term < self.current_term or (
+            candidate_term == self.current_term and self.voted_for is not None
+        ):
+            return raft_pb2.RequestVoteReply(term=self.current_term, voteGranted=False)
+
+        last_entry = self.log.last_entry()
+        last_log_index = last_log_term = -1
+        if last_entry:
+            last_log_index = last_entry.index
+            last_log_term = last_entry.term
+
+        # reject candidate (based on log restriction)
+        if last_log_term > candidate_last_log_term or (
+            last_log_term == candidate_last_log_term
+            and last_log_index > candidate_last_log_index
+        ):
+            return raft_pb2.RequestVoteReply(term=self.current_term, voteGranted=False)
+
+        # vote for candidate and reset state TODO: do we still reset time each time (maybe leader is dead ig)
+        self.current_term = candidate_term
+        self.election_votes = 0
+        self.leader_id = None
+        self.server_state = RaftServer.ServerState.FOLLOWER
+        self.voted_for = candidate_id
         self.__refresh_time()
-        self.__log_msg("recieved request")
-        return raft_pb2.RequestVoteReply()
+
+        self.__log_msg(f"vote for {candidate_id}; term {self.current_term}")
+
+        return raft_pb2.RequestVoteReply(term=self.current_term, voteGranted=True)
 
     def __refresh_time(self):
         self.remaining_time = self.election_timeout
 
     def __log_msg(self, msg: str):
-        print(f"[KVS {self.server_id}]: {msg}")
+        if not self.stop_check:
+            print(f"[KVS {self.server_id}]: {msg}")
 
     def __is_majority(self, count: int) -> bool:
         return count > (self.num_servers / 2)
