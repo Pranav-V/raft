@@ -19,6 +19,7 @@ os.environ["GRPC_VERBOSITY"] = "ERROR"
 class KeyValueStore(raft_pb2_grpc.KeyValueStoreServicer):
 
     KVS_PORT_BASE = 9000
+    KVS_TIMEOUT = 0.25
 
     class KVSRPC(Enum):
         APPEND_ENTRIES = 1
@@ -89,11 +90,11 @@ class KeyValueStore(raft_pb2_grpc.KeyValueStoreServicer):
                 )
                 stub = raft_pb2_grpc.KeyValueStoreStub(channel)
                 reply_data = KeyValueStore.KVSRPC.rpc_to_call(stub, request_type)(
-                    request_data
+                    request_data, timeout=KeyValueStore.KVS_TIMEOUT
                 )
                 self.raft_server.recieve_reply(request_type, reply_data)
             except:
-                # TODO check if this handles network errors
+                # timeout or network errors
                 pass
 
     def __get_server_port(self, server_id: int) -> int:
