@@ -34,16 +34,10 @@ class KeyValueStore(raft_pb2_grpc.KeyValueStoreServicer):
         def rpc_to_call(cls, stub, request_type):
             if request_type is cls.APPEND_ENTRIES:
                 return stub.AppendEntries
-            elif request_type is cls.GET:
-                return stub.Get
-            elif request_type is cls.GET_STATE:
-                return stub.GetState
-            elif request_type is cls.PUT:
-                return stub.Put
-            elif request_type is cls.REPLACE:
-                return stub.Replace
             elif request_type is cls.REQUEST_VOTE:
                 return stub.RequestVote
+
+            raise Exception
 
     def __init__(self, server_id: int, num_servers: int):
         self.raft_server = RaftServer(self, server_id, num_servers)
@@ -94,7 +88,10 @@ class KeyValueStore(raft_pb2_grpc.KeyValueStoreServicer):
                     f"localhost:{self.__get_server_port(server_id)}"
                 )
                 stub = raft_pb2_grpc.KeyValueStoreStub(channel)
-                reply = KeyValueStore.KVSRPC.rpc_to_call(stub, request_type)(request_data)
+                reply_data = KeyValueStore.KVSRPC.rpc_to_call(stub, request_type)(
+                    request_data
+                )
+                self.raft_server.recieve_reply(request_type, reply_data)
             except:
                 # TODO check if this handles network errors
                 pass
@@ -161,15 +158,21 @@ class RaftServer:
 
     def recieve_message(self, request_type: KeyValueStore.KVSRPC, request_data):
         if request_type is KeyValueStore.KVSRPC.APPEND_ENTRIES:
-            pass
+            return self.__handle_append_entries(
+                request_data.term,
+                request_data.leaderId,
+                request_data.prevLogIndex,
+                request_data.entries,
+                request_data.leaderCommit,
+            )
         elif request_type is KeyValueStore.KVSRPC.GET:
-            pass
+            return
         elif request_type is KeyValueStore.KVSRPC.GET_STATE:
-            pass
+            return
         elif request_type is KeyValueStore.KVSRPC.PUT:
-            pass
+            return
         elif request_type is KeyValueStore.KVSRPC.REPLACE:
-            pass
+            return
         elif request_type is KeyValueStore.KVSRPC.REQUEST_VOTE:
             return self.__handle_request_vote(
                 request_data.term,
@@ -178,8 +181,27 @@ class RaftServer:
                 request_data.lastLogTerm,
             )
 
+        raise Exception
+
+    def recieve_reply(self, request_type: KeyValueStore.KVSRPC, reply_data):
+        if request_type is KeyValueStore.KVSRPC.APPEND_ENTRIES:
+            pass
+        elif request_type is KeyValueStore.KVSRPC.REQUEST_VOTE:
+            self.__handle_request_vote_reply(reply_data.term, reply_data.voteGranted)
+
     def __check_timeout(self):
-        self.remaining_time -= RaftServer.CHECK_TIME * 1000
+        # no election timeout for leader
+        if self.server_state is RaftServer.ServerState.LEADER:
+            # hearbeat to maintain leadership
+            append_entries_args = raft_pb2.AppendEntriesArgs(
+                term=self.current_term, leaderId=self.server_id
+            )
+
+            self.kvs_servicer.broadcast_rpc(
+                self.kvs_servicer.KVSRPC.APPEND_ENTRIES, append_entries_args
+            )
+        else:
+            self.remaining_time -= RaftServer.CHECK_TIME * 1000
 
         # transition to candidate
         if self.remaining_time <= 0:
@@ -206,11 +228,22 @@ class RaftServer:
                 self.kvs_servicer.KVSRPC.REQUEST_VOTE, request_vote_args
             )
 
-            self.__log_msg(f"transition to candidate; term {self.current_term}")
-
         # check for cleanup
         if not self.stop_check:
             threading.Timer(RaftServer.CHECK_TIME, self.__check_timeout).start()
+
+    def __handle_append_entries(
+        self,
+        leader_term: int,
+        leader_id: int,
+        prev_log_index: int,
+        log_entries: list[raft_pb2.LogEntry],
+        leader_commit_index: int,
+    ):
+        if leader_term >= self.current_term:
+            self.__refresh_time()
+
+        return raft_pb2.AppendEntriesReply()
 
     def __handle_request_vote(
         self,
@@ -246,9 +279,30 @@ class RaftServer:
         self.voted_for = candidate_id
         self.__refresh_time()
 
-        self.__log_msg(f"vote for {candidate_id}; term {self.current_term}")
-
         return raft_pb2.RequestVoteReply(term=self.current_term, voteGranted=True)
+
+    def __handle_request_vote_reply(self, reply_term: int, vote_granted: bool):
+        if self.current_term == reply_term and vote_granted:
+            self.election_votes += 1
+
+            # transition to leader
+            if (
+                self.__is_majority(self.election_votes)
+                and self.server_state is RaftServer.ServerState.CANDIDATE
+            ):
+                self.leader_id = self.server_id
+                self.server_state = RaftServer.ServerState.LEADER
+
+                self.__log_msg(f"elected leader for term {self.current_term}")
+
+                # convey leadership change
+                append_entries_args = raft_pb2.AppendEntriesArgs(
+                    term=self.current_term, leaderId=self.server_id
+                )
+
+                self.kvs_servicer.broadcast_rpc(
+                    self.kvs_servicer.KVSRPC.APPEND_ENTRIES, append_entries_args
+                )
 
     def __refresh_time(self):
         self.remaining_time = self.election_timeout
