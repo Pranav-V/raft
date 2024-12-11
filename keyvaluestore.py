@@ -158,6 +158,23 @@ class RaftServer:
 
             return copied_entries
 
+        def replicate_log(self, start_index: int, entries: list[raft_pb2.LogEntry]):
+            self.log = (self.log[:start_index]) + ([None] * len(entries))
+            for i, entry in enumerate(entries):
+                new_log[start_index + i] = RaftLog.LogEntry(
+                    entry.key,
+                    entry.value,
+                    entry.ClientId,
+                    entry.RequestId,
+                    entry.index,
+                    entry.term,
+                    {
+                        raft_pb2.RequestType.put: KeyValueStore.KVSRPC.PUT,
+                        raft_pb2.RequestType.get: KeyValueStore.KVSRPC.GET,
+                        raft_pb2.RequestType.replace: KeyValueStore.KVSRPC.REPLACE,
+                    }[entry.request],
+                )
+
         def last_entry(self) -> Optional[LogEntry]:
             return None if not self.log else self.log[-1]
 
@@ -293,14 +310,28 @@ class RaftServer:
         log_entries: list[raft_pb2.LogEntry],
         leader_commit_index: int,
     ):
+        # TODO what do we use leader commit index for
         if leader_term < self.current_term:
             return raft_pb2.AppendEntriesReply(
-                term=self.current_term, success=False, next_try_index=prev_log_index + 1
+                term=self.current_term, success=False, nextTryIndex=prev_log_index + 1
             )
+
+        if prev_log_index > 0 and (
+            prev_log_index >= len(self.log)
+            or self.log.log[prev_log_index].term != prev_log_term
+        ):
+            return raft_pb2.AppendEntriesReply(
+                term=self.current_term,
+                success=False,
+                nextTryIndex=min(prev_log_index, len(self.log)),
+            )
+
+        # TODO: actually commit stuff
+        self.log.replicate_log(prev_log_index + 1, log_entries)
 
         self.__refresh_time()
 
-        return raft_pb2.AppendEntriesReply()
+        return raft_pb2.AppendEntriesReply(term=self.current_term, success=True, nextTryIndex=len(self.log))
 
     def __handle_append_entries_reply(
         self, term: int, success: bool, next_try_index: int
