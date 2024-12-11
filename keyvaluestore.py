@@ -118,10 +118,51 @@ class RaftServer:
             request_id: int
 
         def __init__(self):
+            self.commit_index = 0
+            self.kvstore = {}
             self.log = []
+
+        def append_log(self, new_entry: LogEntry) -> bool:
+            # check for duplicate request
+            for entry in self.log:
+                if (
+                    entry.client_id == new_entry.client_id
+                    and entry.request_id == new_entry.request_id
+                ):
+                    return False
+
+            self.log.append(new_entry)
+            return True
+
+        def copy_log(self, from_idx: int) -> list[raft_pb2.LogEntry]:
+            copied_entries = []
+            for i in range(from_idx, len(self.log)):
+                entry = self.log[i]
+                copied_entries.append(
+                    raft_pb2.LogEntry(
+                        key=entry.key,
+                        value=entry.value,
+                        ClientId=entry.client_id,
+                        RequestId=entry.request_id,
+                        index=entry.index,
+                        term=entry.term,
+                        request=(
+                            {
+                                KeyValueStore.KVSRPC.PUT: raft_pb2.RequestType.put,
+                                KeyValueStore.KVSRPC.GET: raft_pb2.RequestType.get,
+                                KeyValueStore.KVSRPC.REPLACE: raft_pb2.RequestType.replace,
+                            }[entry.request]
+                        ),
+                    )
+                )
+
+            return copied_entries
 
         def last_entry(self) -> Optional[LogEntry]:
             return None if not self.log else self.log[-1]
+
+        def __len__(self):
+            return len(self.log)
 
     class ServerState(Enum):
         FOLLOWER = 1
@@ -143,6 +184,8 @@ class RaftServer:
         self.election_votes = 0
         self.leader_id = None
         self.log = RaftServer.RaftLog()
+        self.match_index = None
+        self.next_index = None
         self.remaining_time = self.election_timeout
         self.server_state = RaftServer.ServerState.FOLLOWER
         self.voted_for = None
@@ -163,6 +206,7 @@ class RaftServer:
                 request_data.term,
                 request_data.leaderId,
                 request_data.prevLogIndex,
+                request_data.prevLogTerm,
                 request_data.entries,
                 request_data.leaderCommit,
             )
@@ -171,7 +215,12 @@ class RaftServer:
         elif request_type is KeyValueStore.KVSRPC.GET_STATE:
             return
         elif request_type is KeyValueStore.KVSRPC.PUT:
-            return
+            return self.__handle_put(
+                request_data.key,
+                request_data.value,
+                request_data.ClientId,
+                request_data.RequestId,
+            )
         elif request_type is KeyValueStore.KVSRPC.REPLACE:
             return
         elif request_type is KeyValueStore.KVSRPC.REQUEST_VOTE:
@@ -193,7 +242,7 @@ class RaftServer:
     def __check_timeout(self):
         # no election timeout for leader
         if self.server_state is RaftServer.ServerState.LEADER:
-            # hearbeat to maintain leadership
+            # heartbeat to maintain leadership
             append_entries_args = raft_pb2.AppendEntriesArgs(
                 term=self.current_term, leaderId=self.server_id
             )
@@ -238,13 +287,72 @@ class RaftServer:
         leader_term: int,
         leader_id: int,
         prev_log_index: int,
+        prev_log_term: int,
         log_entries: list[raft_pb2.LogEntry],
         leader_commit_index: int,
     ):
+        print(log_entries)
         if leader_term >= self.current_term:
             self.__refresh_time()
 
         return raft_pb2.AppendEntriesReply()
+
+    def __handle_put(self, key: str, value: str, client_id: int, request_id: int):
+        # TODO: check duplicate with client_id and request_id
+        if self.server_state is not RaftServer.ServerState.LEADER:
+            return raft_pb2.Reply(wrongLeader=True)
+
+        new_entry = self.log.append_log(
+            RaftServer.RaftLog.LogEntry(
+                key,
+                value,
+                self.kvs_servicer.KVSRPC.PUT,
+                len(self.log),
+                self.current_term,
+                client_id,
+                request_id,
+            )
+        )
+
+        # don't duplicate request in log
+        try:
+            if new_entry:
+                match_to_index = len(self.log) - 1
+                print(self.log.commit_index, match_to_index)
+                while (
+                    self.server_state is RaftServer.ServerState.LEADER
+                    and self.log.commit_index <= match_to_index
+                ):
+                    for server_id in range(1, self.num_servers + 1):
+                        if (
+                            server_id != self.server_id
+                            and self.match_index[server_id - 1] <= match_to_index
+                        ):
+                            prev_index = self.next_index[server_id - 1] - 1
+                            append_entries_args = raft_pb2.AppendEntriesArgs(
+                                term=self.current_term,
+                                leaderId=self.server_id,
+                                prevLogIndex=prev_index,
+                                prevLogTerm=(
+                                    0
+                                    if prev_index == -1
+                                    else self.log.log[prev_index].term
+                                ),
+                                entries=self.log.copy_log(prev_index + 1),
+                                leaderCommit=self.log.commit_index,
+                            )
+                            self.kvs_servicer.broadcast_rpc(
+                                self.kvs_servicer.KVSRPC.APPEND_ENTRIES,
+                                append_entries_args,
+                            )
+
+                    # wait for replies to come through
+                    time.sleep(KeyValueStore.KVS_TIMEOUT)
+
+                    return raft_pb2.Reply(wrongLeader=False)
+        except Exception as e:
+            print(e)
+        return raft_pb2.Reply(wrongLeader=False)
 
     def __handle_request_vote(
         self,
@@ -276,6 +384,8 @@ class RaftServer:
         self.current_term = candidate_term
         self.election_votes = 0
         self.leader_id = None
+        self.match_index = None
+        self.next_index = None
         self.server_state = RaftServer.ServerState.FOLLOWER
         self.voted_for = candidate_id
         self.__refresh_time()
@@ -292,6 +402,8 @@ class RaftServer:
                 and self.server_state is RaftServer.ServerState.CANDIDATE
             ):
                 self.leader_id = self.server_id
+                self.match_index = [0] * self.num_servers
+                self.next_index = [len(self.log)] * self.num_servers
                 self.server_state = RaftServer.ServerState.LEADER
 
                 self.__log_msg(f"elected leader for term {self.current_term}")
@@ -304,6 +416,8 @@ class RaftServer:
                 self.kvs_servicer.broadcast_rpc(
                     self.kvs_servicer.KVSRPC.APPEND_ENTRIES, append_entries_args
                 )
+
+                time.sleep()
 
     def __refresh_time(self):
         self.remaining_time = self.election_timeout
