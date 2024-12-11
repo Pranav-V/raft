@@ -116,15 +116,24 @@ class LogEntry(_message.Message):
     ) -> None: ...
 
 class AppendEntriesArgs(_message.Message):
-    __slots__ = ("term", "leaderId", "prevLogIndex", "entries", "leaderCommit")
+    __slots__ = (
+        "term",
+        "leaderId",
+        "prevLogIndex",
+        "prevLogTerm",
+        "entries",
+        "leaderCommit",
+    )
     TERM_FIELD_NUMBER: _ClassVar[int]
     LEADERID_FIELD_NUMBER: _ClassVar[int]
     PREVLOGINDEX_FIELD_NUMBER: _ClassVar[int]
+    PREVLOGTERM_FIELD_NUMBER: _ClassVar[int]
     ENTRIES_FIELD_NUMBER: _ClassVar[int]
     LEADERCOMMIT_FIELD_NUMBER: _ClassVar[int]
     term: int
     leaderId: int
     prevLogIndex: int
+    prevLogTerm: int
     entries: _containers.RepeatedCompositeFieldContainer[LogEntry]
     leaderCommit: int
     def __init__(
@@ -132,6 +141,7 @@ class AppendEntriesArgs(_message.Message):
         term: _Optional[int] = ...,
         leaderId: _Optional[int] = ...,
         prevLogIndex: _Optional[int] = ...,
+        prevLogTerm: _Optional[int] = ...,
         entries: _Optional[_Iterable[_Union[LogEntry, _Mapping]]] = ...,
         leaderCommit: _Optional[int] = ...,
     ) -> None: ...
