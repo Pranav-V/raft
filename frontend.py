@@ -18,11 +18,23 @@ class FrontEnd(raft_pb2_grpc.FrontEndServicer):
     # TODO: add error checking for startraft
 
     def Get(self, request, context):
-        pass
+        curr_server_id = 0
+        while True:
+            try:
+                channel = grpc.insecure_channel(
+                    f"localhost:{self.__get_server_port(curr_server_id + 1)}"
+                )
+                reply_data = raft_pb2_grpc.KeyValueStoreStub(channel).Get(
+                    request, timeout=FrontEnd.REQUEST_TIMEOUT
+                )
+                if not reply_data.wrongLeader:
+                    return reply_data
+            except Exception as e:
+                pass
+            finally:
+                curr_server_id = (curr_server_id + 1) % self.num_servers
 
     def Put(self, request, context):
-        # TODO: handle duplicates
-
         curr_server_id = 0
         while True:
             try:
@@ -40,7 +52,21 @@ class FrontEnd(raft_pb2_grpc.FrontEndServicer):
                 curr_server_id = (curr_server_id + 1) % self.num_servers
 
     def Replace(self, request, context):
-        pass
+        curr_server_id = 0
+        while True:
+            try:
+                channel = grpc.insecure_channel(
+                    f"localhost:{self.__get_server_port(curr_server_id + 1)}"
+                )
+                reply_data = raft_pb2_grpc.KeyValueStoreStub(channel).Replace(
+                    request, timeout=FrontEnd.REQUEST_TIMEOUT
+                )
+                if not reply_data.wrongLeader:
+                    return reply_data
+            except Exception as e:
+                pass
+            finally:
+                curr_server_id = (curr_server_id + 1) % self.num_servers
 
     def StartRaft(self, request, context):
         self.num_servers = request.arg
