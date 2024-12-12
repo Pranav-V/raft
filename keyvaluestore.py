@@ -92,7 +92,7 @@ class KeyValueStore(raft_pb2_grpc.KeyValueStoreServicer):
                 reply_data = KeyValueStore.KVSRPC.rpc_to_call(stub, request_type)(
                     request_data, timeout=KeyValueStore.KVS_TIMEOUT
                 )
-                self.raft_server.recieve_reply(request_type, reply_data)
+                self.raft_server.recieve_reply(server_id, request_type, reply_data)
             except:
                 # timeout or network errors
                 pass
@@ -157,6 +157,11 @@ class RaftServer:
                 )
 
             return copied_entries
+
+        def execute_log(self, index: int) -> raft_pb2.Reply:
+            entry = self.log[index]
+            self.kvstore[entry.key] = entry.value
+            return raft_pb2.Reply(wrongLeader=False, value=self.kvstore[entry.key])
 
         def replicate_log(self, start_index: int, entries: list[raft_pb2.LogEntry]):
             self.log = (self.log[:start_index]) + ([None] * len(entries))
@@ -228,18 +233,31 @@ class RaftServer:
                 request_data.leaderCommit,
             )
         elif request_type is KeyValueStore.KVSRPC.GET:
-            return
-        elif request_type is KeyValueStore.KVSRPC.GET_STATE:
-            return
-        elif request_type is KeyValueStore.KVSRPC.PUT:
-            return self.__handle_put(
+            return self.__handle_request(
                 request_data.key,
                 request_data.value,
                 request_data.ClientId,
                 request_data.RequestId,
+                KeyValueStore.KVSRPC.GET,
+            )
+        elif request_type is KeyValueStore.KVSRPC.GET_STATE:
+            return
+        elif request_type is KeyValueStore.KVSRPC.PUT:
+            return self.__handle_request(
+                request_data.key,
+                request_data.value,
+                request_data.ClientId,
+                request_data.RequestId,
+                KeyValueStore.KVSRPC.PUT,
             )
         elif request_type is KeyValueStore.KVSRPC.REPLACE:
-            return
+            return self.__handle_request(
+                request_data.key,
+                request_data.value,
+                request_data.ClientId,
+                request_data.RequestId,
+                KeyValueStore.KVSRPC.REPLACE,
+            )
         elif request_type is KeyValueStore.KVSRPC.REQUEST_VOTE:
             return self.__handle_request_vote(
                 request_data.term,
@@ -250,13 +268,17 @@ class RaftServer:
 
         raise Exception
 
-    def recieve_reply(self, request_type: KeyValueStore.KVSRPC, reply_data):
+    def recieve_reply(
+        self, sender_id: int, request_type: KeyValueStore.KVSRPC, reply_data
+    ):
         if request_type is KeyValueStore.KVSRPC.APPEND_ENTRIES:
             self.__handle_append_entries_reply(
                 reply_data.term, reply_data.success, reply_data.nextTryIndex
             )
         elif request_type is KeyValueStore.KVSRPC.REQUEST_VOTE:
-            self.__handle_request_vote_reply(reply_data.term, reply_data.voteGranted)
+            self.__handle_request_vote_reply(
+                sender_id, reply_data.term, reply_data.voteGranted
+            )
 
     def __check_timeout(self):
         # no election timeout for leader
@@ -326,20 +348,41 @@ class RaftServer:
                 nextTryIndex=min(prev_log_index, len(self.log)),
             )
 
-        # TODO: actually commit stuff
         self.log.replicate_log(prev_log_index + 1, log_entries)
+
+        # replicate
+        if leader_commit_index > self.commit_index:
+            for i in range(self.commit_index, leader_commit_index):
+                self.log.execute_log(i)
+
+            self.commit_index = leader_commit_index
 
         self.__refresh_time()
 
-        return raft_pb2.AppendEntriesReply(term=self.current_term, success=True, nextTryIndex=len(self.log))
+        return raft_pb2.AppendEntriesReply(
+            term=self.current_term, success=True, nextTryIndex=len(self.log)
+        )
 
     def __handle_append_entries_reply(
-        self, term: int, success: bool, next_try_index: int
+        self, sender_id: int, term: int, success: bool, next_try_index: int
     ):
-        pass
+        if (
+            self.server_state is RaftServer.ServerState.LEADER
+            and self.current_term == term
+        ):
+            if success:
+                self.match_index[sender_id] = next_try_index
+            else:
+                self.next_index[sender_id] = next_try_index
 
-    def __handle_put(self, key: str, value: str, client_id: int, request_id: int):
-        # TODO: check duplicate with client_id and request_id
+    def __handle_request(
+        self,
+        key: str,
+        value: str,
+        client_id: int,
+        request_id: int,
+        request: KeyValueStore.KVSRPC,
+    ):
         if self.server_state is not RaftServer.ServerState.LEADER:
             return raft_pb2.Reply(wrongLeader=True)
 
@@ -347,7 +390,7 @@ class RaftServer:
             RaftServer.RaftLog.LogEntry(
                 key,
                 value,
-                self.kvs_servicer.KVSRPC.PUT,
+                request,
                 len(self.log),
                 self.current_term,
                 client_id,
@@ -358,15 +401,19 @@ class RaftServer:
         # don't duplicate request in log
         if new_entry:
             match_to_index = len(self.log) - 1
+            last_execution = None
             while (
                 self.server_state is RaftServer.ServerState.LEADER
                 and self.log.commit_index <= match_to_index
             ):
+                min_match = float('inf')
+                last_executed = None
                 for server_id in range(1, self.num_servers + 1):
                     if (
                         server_id != self.server_id
                         and self.match_index[server_id - 1] <= match_to_index
                     ):
+                        min_match = min(min_match, self.match_index[server_id - 1])
                         prev_index = self.next_index[server_id - 1] - 1
                         append_entries_args = raft_pb2.AppendEntriesArgs(
                             term=self.current_term,
@@ -378,13 +425,24 @@ class RaftServer:
                             entries=self.log.copy_log(prev_index + 1),
                             leaderCommit=self.log.commit_index,
                         )
+
                         self.kvs_servicer.broadcast_rpc(
                             self.kvs_servicer.KVSRPC.APPEND_ENTRIES,
                             append_entries_args,
                         )
 
+                if self.commit_index < min_match:
+                    for i in range(self.commit_index, min_match):
+                        last_executed = self.log.execute_log(i)
+
+                    self.commit_index = min_match
+
                 # wait for replies to come through
                 time.sleep(KeyValueStore.KVS_TIMEOUT)
+            
+            # send reply back to client
+            if self.server_state is RaftServer.ServerState.LEADER:
+                return last_executed
 
         return raft_pb2.Reply(wrongLeader=False)
 
