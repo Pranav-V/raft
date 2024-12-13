@@ -17,4 +17,4 @@ To compile this project, use the makefile commands.
         - ```raft_pb2.py```: Contains globals used for ```grpc``` module
         - ```raft_pb2.pyi```: Contains implementations for the messages used for communication through the RPC calls
         - ```raft_pb2_grpc.py```: Contains implementations for the services used to process inter-server communication
-        
+            - services ```FrontEnd``` and ```KeyValueStore``` have been overloaded because we wanted to customize their functionality, their implementations are in ```frontend.py``` and ```keyvaluestore.py```, respectively
