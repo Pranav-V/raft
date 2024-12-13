@@ -94,7 +94,7 @@ class FrontEnd(raft_pb2_grpc.FrontEndServicer):
 
 
 if __name__ == "__main__":
-    frontend_server = grpc.server(concurrent.futures.ThreadPoolExecutor(max_workers=5))
+    frontend_server = grpc.server(concurrent.futures.ThreadPoolExecutor(max_workers=10))
     frontend_servicer = FrontEnd()
     raft_pb2_grpc.add_FrontEndServicer_to_server(frontend_servicer, frontend_server)
     frontend_server.add_insecure_port(f"[::]:{FrontEnd.SERVER_PORT}")
