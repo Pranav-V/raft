@@ -1,4 +1,4 @@
-grpcio==1.44.0
-grpcio-tools==1.44.0
-protobuf==3.19.4
-black==22.3.0
+grpcio
+grpcio-tools
+protobuf
+black
