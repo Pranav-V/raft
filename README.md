@@ -4,6 +4,9 @@
 
 ### Compilation
 
+Please use python version ```3.8.10```, as this is the version that has been in use on the cs linux machines
+- we were unable to change this, and thus needed to specify here.
+
 To compile this project, use the makefile commands.
 
 - ```make start```

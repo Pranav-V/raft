@@ -1,3 +1,4 @@
+from __future__ import annotations
 import argparse
 import concurrent.futures
 import grpc
@@ -10,7 +11,7 @@ import threading
 import time
 from dataclasses import dataclass
 from enum import Enum
-from typing import Optional
+from typing import Optional, List
 
 # suppress logging warnings
 os.environ["GRPC_VERBOSITY"] = "ERROR"
